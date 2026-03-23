@@ -1,0 +1,494 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Core User Model
+model User {
+  id        String   @id @default(uuid())
+  phone     String   @unique
+  password  String
+  role      UserRole @default(SHIPPER)
+
+  // Profile info
+  firstName String?
+  lastName  String?
+  email     String?
+  avatar    String?
+
+  // Verification
+  isPhoneVerified Boolean @default(false)
+  isFaydaVerified Boolean @default(false)
+  faydaId         String?
+
+  // Status
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  shipperProfile ShipperProfile?
+  driverProfile  DriverProfile?
+  fleetOwnerProfile FleetOwnerProfile?
+  wallet         Wallet?
+  notifications  Notification[]
+
+  @@map("users")
+}
+
+enum UserRole {
+  SHIPPER
+  DRIVER
+  FLEET_OWNER
+  ADMIN
+}
+
+// Shipper Profile
+model ShipperProfile {
+  id          String @id @default(uuid())
+  userId      String @unique
+  user        User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  companyName String?
+  tinNumber   String?
+  businessType BusinessType?
+
+  // Location
+  address     String?
+  city        String?
+  region      String?
+
+  // Stats
+  totalShipments Int @default(0)
+  rating        Float @default(0)
+
+  // Relations
+  freightPosts FreightPost[]
+
+  @@map("shipper_profiles")
+}
+
+enum BusinessType {
+  INDIVIDUAL
+  SMALL_BUSINESS
+  MEDIUM_BUSINESS
+  LARGE_ENTERPRISE
+}
+
+// Driver Profile
+model DriverProfile {
+  id            String @id @default(uuid())
+  userId        String @unique
+  user          User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // License info
+  licenseNumber String?
+  licenseExpiry   DateTime?
+  licenseType     String?
+
+  // Vehicle
+  vehicleType     VehicleType?
+  vehicleCapacity Float?      // in tons
+  vehiclePlate    String?
+
+  // Stats
+  totalDeliveries Int @default(0)
+  rating          Float @default(0)
+  totalReviews    Int @default(0)
+  onTimeRate      Float @default(0)
+  isAvailable     Boolean @default(true)
+  currentLocation String?
+
+  // Relations
+  bids         Bid[]
+  freightJobs  FreightJob[]
+  auctionBids  AuctionBid[]
+
+  @@map("driver_profiles")
+}
+
+enum VehicleType {
+  SMALL_TRUCK    // <= 3 tons
+  MEDIUM_TRUCK   // 3-10 tons
+  LARGE_TRUCK    // 10-20 tons
+  HEAVY_TRUCK    // > 20 tons
+  REFRIGERATED
+  FLATBED
+  TANKER
+}
+
+// Fleet Owner Profile
+model FleetOwnerProfile {
+  id          String @id @default(uuid())
+  userId      String @unique
+  user        User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  companyName String?
+  fleetSize   Int @default(0)
+
+  // Relations
+  assets Asset[]
+
+  @@map("fleet_owner_profiles")
+}
+
+// Asset (Vehicle/Machinery)
+model Asset {
+  id          String    @id @default(uuid())
+  ownerId     String
+  owner       FleetOwnerProfile @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  name        String
+  type        AssetType
+  status      AssetStatus @default(AVAILABLE)
+
+  // Specifications
+  capacity    Float?
+  year        Int?
+  plateNumber String?
+
+  // Location
+  currentLocation String?
+
+  // Pricing (for rentals)
+  dailyRate   Float?
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("assets")
+}
+
+enum AssetType {
+  TRUCK
+  MACHINERY
+  CAR
+  VAN
+}
+
+enum AssetStatus {
+  AVAILABLE
+  RENTED
+  MAINTENANCE
+  IN_USE
+  UNAVAILABLE
+}
+
+// Freight Post (Shipper posts cargo)
+model FreightPost {
+  id          String @id @default(uuid())
+  shipperId   String
+  shipper     ShipperProfile @relation(fields: [shipperId], references: [id], onDelete: Cascade)
+
+  // Cargo details
+  title       String
+  description String?
+  cargoType   CargoType
+  weight      Float       // in kg
+  dimensions  String?     // LxWxH in meters
+
+  // Locations
+  pickupLocation    String
+  pickupLat         Float?
+  pickupLng         Float?
+  pickupDate        DateTime
+
+  deliveryLocation  String
+  deliveryLat       Float?
+  deliveryLng       Float?
+  preferredDeliveryDate DateTime?
+
+  // Requirements
+  requiredVehicleType VehicleType?
+  specialRequirements String?
+
+  // Auction settings
+  budget          Float?
+  auctionEnabled  Boolean @default(true)
+  auctionStartTime DateTime?
+  auctionEndTime   DateTime?
+  startingBid      Float?
+
+  // Status
+  status          FreightStatus @default(POSTED)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  bids     Bid[]
+  job      FreightJob?
+  auction   Auction?
+
+  @@map("freight_posts")
+}
+
+enum CargoType {
+  GENERAL
+  PERISHABLE
+  FRAGILE
+  HEAVY
+  HAZARDOUS
+  LIQUID
+  LIVESTOCK
+  CONSTRUCTION
+}
+
+enum FreightStatus {
+  POSTED      // Waiting for bids
+  AUCTION     // Active auction
+  ASSIGNED    // Driver assigned
+  IN_PROGRESS // Pickup completed, in transit
+  DELIVERED   // Delivery completed
+  CANCELLED
+}
+
+// Bid (Driver bids on freight post)
+model Bid {
+  id          String @id @default(uuid())
+
+  freightPostId String
+  freightPost   FreightPost @relation(fields: [freightPostId], references: [id], onDelete: Cascade)
+
+  driverId      String
+  driver        DriverProfile @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  amount        Float
+  currency      String @default("ETB")
+
+  // Bid details
+  estimatedPickupDate   DateTime?
+  estimatedDeliveryDate DateTime?
+  message               String?
+
+  // Status
+  status        BidStatus @default(PENDING)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  job FreightJob?
+
+  @@map("bids")
+}
+
+enum BidStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  CANCELLED
+  OUTBID      // For reverse auctions - lower bid received
+}
+
+// Freight Job (Active shipment)
+model FreightJob {
+  id          String @id @default(uuid())
+
+  freightPostId String @unique
+  freightPost   FreightPost @relation(fields: [freightPostId], references: [id], onDelete: Cascade)
+
+  bidId         String @unique
+  bid           Bid @relation(fields: [bidId], references: [id], onDelete: Cascade)
+
+  driverId      String
+  driver        DriverProfile @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  // Tracking
+  status        JobStatus @default(ASSIGNED)
+
+  pickupTime    DateTime?
+  deliveryTime  DateTime?
+
+  // Location tracking
+  currentLat    Float?
+  currentLng    Float?
+  lastLocationUpdate DateTime?
+
+  // Delivery confirmation
+  pickupQrCode      String?
+  deliveryQrCode    String?
+  pickupConfirmed   Boolean @default(false)
+  deliveryConfirmed Boolean @default(false)
+
+  // Proof of delivery
+  deliveryPhotos    String[]
+  recipientName     String?
+  recipientSignature String?
+  notes             String?
+
+  // Payment
+  paymentStatus     PaymentStatus @default(PENDING)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("freight_jobs")
+}
+
+enum JobStatus {
+  ASSIGNED      // Driver assigned, not yet picked up
+  PICKUP_READY  // At pickup location
+  IN_TRANSIT    // Cargo picked up
+  NEAR_DELIVERY // Approaching destination
+  DELIVERED     // Delivery confirmed
+  COMPLETED     // Payment released
+  DISPUTED
+}
+
+enum PaymentStatus {
+  PENDING
+  IN_ESCROW
+  RELEASED
+  DISPUTED
+  REFUNDED
+}
+
+// Auction (Reverse auction for freight)
+model Auction {
+  id          String @id @default(uuid())
+
+  freightPostId String @unique
+  freightPost FreightPost @relation(fields: [freightPostId], references: [id], onDelete: Cascade)
+
+  startTime   DateTime
+  endTime     DateTime
+  startingBid Float
+  currentBid  Float?
+  bidCount    Int @default(0)
+
+  status      AuctionStatus @default(SCHEDULED)
+
+  winnerId    String?
+  winningBid  Float?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  bids AuctionBid[]
+
+  @@map("auctions")
+}
+
+enum AuctionStatus {
+  SCHEDULED
+  ACTIVE
+  ENDED
+  CANCELLED
+}
+
+// Auction Bid (Real-time bids during auction)
+model AuctionBid {
+  id        String @id @default(uuid())
+
+  auctionId String
+  auction   Auction @relation(fields: [auctionId], references: [id], onDelete: Cascade)
+
+  driverId  String
+  driver    DriverProfile @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  amount    Float
+
+  createdAt DateTime @default(now())
+
+  @@map("auction_bids")
+}
+
+// Wallet
+model Wallet {
+  id        String @id @default(uuid())
+  userId    String @unique
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  balance   Float @default(0)
+  currency  String @default("ETB")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  transactions Transaction[]
+
+  @@map("wallets")
+}
+
+// Transaction
+model Transaction {
+  id          String @id @default(uuid())
+  walletId    String
+  wallet      Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  type        TransactionType
+  amount      Float
+  currency    String @default("ETB")
+
+  // Details
+  description String?
+  reference   String?     // External payment reference
+  status      TransactionStatus @default(PENDING)
+
+  // Related entity
+  relatedId   String?     // Job ID, Bid ID, etc.
+  relatedType String?     // Type of related entity
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("transactions")
+}
+
+enum TransactionType {
+  DEPOSIT
+  WITHDRAWAL
+  PAYMENT
+  REFUND
+  EARNING
+  ESCROW_HOLD
+  ESCROW_RELEASE
+  FEE
+  BONUS
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+// Notification
+model Notification {
+  id        String @id @default(uuid())
+  userId    String
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type      NotificationType
+  title     String
+  body      String
+
+  data      Json?       // Additional payload
+  read      Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@map("notifications")
+}
+
+enum NotificationType {
+  BID_RECEIVED
+  BID_ACCEPTED
+  OUTBID_ALERT
+  AUCTION_WON
+  JOB_ASSIGNED
+  PICKUP_REMINDER
+  DELIVERY_REMINDER
+  PAYMENT_RECEIVED
+  SYSTEM
+}

@@ -18,6 +18,7 @@ import rentalRoutes from './routes/rentals';
 import aiRoutes from './routes/ai';
 import notificationRoutes from './routes/notifications';
 import paymentRoutes from './routes/payments';
+import qrRoutes from './routes/qr';
 
 // Import services
 import { initializeFirebase } from './services/notifications';
@@ -81,6 +82,7 @@ app.use('/api/rentals', rentalRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/qr', qrRoutes);
 
 // API documentation
 app.get('/api', (req, res) => {
@@ -99,6 +101,7 @@ app.get('/api', (req, res) => {
       ai: '/api/ai',
       notifications: '/api/notifications',
       payments: '/api/payments',
+      qr: '/api/qr',
     },
     websocket: {
       events: [

@@ -13,6 +13,8 @@ import auctionRoutes from './routes/auction';
 import walletRoutes from './routes/wallet';
 import assetRoutes from './routes/assets';
 import driverRoutes from './routes/driver';
+import jobsRoutes from './routes/jobs';
+import rentalRoutes from './routes/rentals';
 
 // Import middleware
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
@@ -65,6 +67,8 @@ app.use('/api/auctions', auctionRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/assets', assetRoutes);
 app.use('/api/driver', driverRoutes);
+app.use('/api/jobs', jobsRoutes);
+app.use('/api/rentals', rentalRoutes);
 
 // API documentation
 app.get('/api', (req, res) => {
@@ -78,6 +82,8 @@ app.get('/api', (req, res) => {
       wallet: '/api/wallet',
       assets: '/api/assets',
       driver: '/api/driver',
+      jobs: '/api/jobs',
+      rentals: '/api/rentals',
     },
     websocket: {
       events: [

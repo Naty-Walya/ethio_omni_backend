@@ -39,6 +39,7 @@ model User {
   fleetOwnerProfile FleetOwnerProfile?
   wallet         Wallet?
   notifications  Notification[]
+  rentalBookings RentalBooking[]
 
   @@map("users")
 }
@@ -163,7 +164,57 @@ model Asset {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
+  // Relations
+  bookings    RentalBooking[]
+
   @@map("assets")
+}
+
+// Rental Booking (Asset rental reservations)
+model RentalBooking {
+  id          String    @id @default(uuid())
+  assetId     String
+  asset       Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  renterId    String
+  renter      User      @relation(fields: [renterId], references: [id], onDelete: Cascade)
+
+  // Booking details
+  startDate   DateTime
+  endDate     DateTime
+  totalDays   Int
+
+  // Pricing
+  dailyRate   Float
+  totalAmount Float
+  currency    String    @default("ETB")
+
+  // Status
+  status      RentalStatus @default(PENDING)
+
+  // Delivery/Pickup
+  pickupLocation   String?
+  deliveryLocation String?
+
+  // Payment
+  paymentStatus    PaymentStatus @default(PENDING)
+
+  // Notes
+  notes            String?
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("rental_bookings")
+}
+
+enum RentalStatus {
+  PENDING      // Waiting for owner approval
+  CONFIRMED    // Approved by owner
+  ACTIVE       // Currently rented
+  COMPLETED    // Returned and completed
+  CANCELLED    // Cancelled by renter or owner
+  REJECTED     // Rejected by owner
 }
 
 enum AssetType {

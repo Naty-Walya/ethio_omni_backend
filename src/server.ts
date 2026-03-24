@@ -15,6 +15,7 @@ import assetRoutes from './routes/assets';
 import driverRoutes from './routes/driver';
 import jobsRoutes from './routes/jobs';
 import rentalRoutes from './routes/rentals';
+import aiRoutes from './routes/ai';
 
 // Import middleware
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
@@ -69,6 +70,7 @@ app.use('/api/assets', assetRoutes);
 app.use('/api/driver', driverRoutes);
 app.use('/api/jobs', jobsRoutes);
 app.use('/api/rentals', rentalRoutes);
+app.use('/api/ai', aiRoutes);
 
 // API documentation
 app.get('/api', (req, res) => {
@@ -84,6 +86,7 @@ app.get('/api', (req, res) => {
       driver: '/api/driver',
       jobs: '/api/jobs',
       rentals: '/api/rentals',
+      ai: '/api/ai',
     },
     websocket: {
       events: [

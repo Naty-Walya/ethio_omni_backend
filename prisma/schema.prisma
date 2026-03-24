@@ -40,6 +40,9 @@ model User {
   wallet         Wallet?
   notifications  Notification[]
   rentalBookings RentalBooking[]
+  aiPredictions  AIPrediction[]
+  aiFeedback     AIFeedback[]   @relation("AIFeedbackUser")
+  fraudAlerts    FraudAlert[]   @relation("FraudAlertUser")
 
   @@map("users")
 }
@@ -542,4 +545,179 @@ enum NotificationType {
   DELIVERY_REMINDER
   PAYMENT_RECEIVED
   SYSTEM
+}
+
+// AI Predictions & Machine Learning
+model AIPrediction {
+  id          String    @id @default(uuid())
+
+  // Prediction metadata
+  modelType   ModelType
+  modelVersion String   @default("1.0.0")
+
+  // Input features
+  features    Json      // Store input features used
+
+  // Prediction output
+  prediction  Json      // Flexible prediction structure
+  confidence  Float     // 0.0 to 1.0
+
+  // Context
+  userId      String?
+  user        User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  region      String?   // Ethiopian region
+  route       String?   // e.g., "Addis Ababa - Hawassa"
+
+  // Actual outcome (for model training)
+  actualOutcome Json?   // What actually happened
+  accuracyScore Float?  // Calculated after outcome
+
+  // Status
+  status      PredictionStatus @default(ACTIVE)
+
+  createdAt   DateTime  @default(now())
+  expiresAt   DateTime? // Predictions may expire
+
+  // Relations
+  feedbacks   AIFeedback[]
+
+  @@map("ai_predictions")
+}
+
+enum ModelType {
+  DEMAND_FORECAST
+  PRICE_RECOMMENDATION
+  FRAUD_DETECTION
+  ROUTE_OPTIMIZATION
+  DRIVER_MATCH
+  ETA_PREDICTION
+  USER_BEHAVIOR
+}
+
+enum PredictionStatus {
+  ACTIVE
+  CONFIRMED      // Actual outcome matches
+  DISPROVEN      // Actual outcome different
+  EXPIRED
+  SHADOW         // Shadow mode - not affecting decisions
+}
+
+// AI Feedback Loop for Model Improvement
+model AIFeedback {
+  id          String    @id @default(uuid())
+
+  predictionId String
+  prediction  AIPrediction @relation(fields: [predictionId], references: [id], onDelete: Cascade)
+
+  // Feedback data
+  feedbackType FeedbackType
+  rating      Int?      // 1-5 rating
+  comment     String?
+
+  // User who provided feedback
+  userId      String
+  user        User      @relation("AIFeedbackUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  // Correction data
+  expectedOutcome Json? // What user expected
+  actualOutcome   Json? // What actually happened
+
+  createdAt   DateTime  @default(now())
+
+  @@map("ai_feedback")
+}
+
+enum FeedbackType {
+  CORRECT
+  INCORRECT
+  USEFUL
+  NOT_USEFUL
+  ACCURATE
+  INACCURATE
+}
+
+// Fraud Alerts
+model FraudAlert {
+  id          String    @id @default(uuid())
+
+  // Alert details
+  alertType   FraudAlertType
+  severity    FraudSeverity @default(MEDIUM)
+  riskScore   Float         // 0.0 to 1.0
+
+  // Related entity
+  relatedId   String        // Entity ID (transaction, bid, etc.)
+  relatedType String        // Entity type
+
+  // Evidence
+  evidence    Json          // Array of suspicious indicators
+  features    Json          // ML features used
+
+  // User involved (if applicable)
+  userId      String?
+  user        User?         @relation("FraudAlertUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  // Status
+  status      FraudStatus @default(OPEN)
+  reviewedBy  String?     // Admin who reviewed
+  reviewedAt  DateTime?
+  resolution  String?     // Resolution notes
+
+  createdAt   DateTime    @default(now())
+
+  @@map("fraud_alerts")
+}
+
+enum FraudAlertType {
+  TRANSACTION
+  BID_MANIPULATION
+  IDENTITY_THEFT
+  ACCOUNT_TAKEOVER
+  PAYMENT_FRAUD
+  COLLUSION
+  CHARGEBACK
+}
+
+enum FraudSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum FraudStatus {
+  OPEN
+  UNDER_REVIEW
+  CONFIRMED_FRAUD
+  FALSE_POSITIVE
+  RESOLVED
+}
+
+// Market Analytics & Aggregated Data
+model MarketAnalytics {
+  id          String    @id @default(uuid())
+
+  // Time period
+  period      String    // e.g., "2024-03-24", "2024-W12"
+  periodType  String    // DAY, WEEK, MONTH
+
+  // Region/Route
+  region      String?
+  route       String?
+
+  // Metrics
+  avgPrice    Float?
+  demandIndex Float?    // 0-100 demand score
+  supplyIndex Float?    // 0-100 supply score
+
+  // Volume
+  totalPosts  Int       @default(0)
+  totalBids   Int       @default(0)
+  completedJobs Int     @default(0)
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([period, periodType, region, route])
+  @@map("market_analytics")
 }

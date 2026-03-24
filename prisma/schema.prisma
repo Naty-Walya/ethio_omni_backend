@@ -39,6 +39,8 @@ model User {
   fleetOwnerProfile FleetOwnerProfile?
   wallet         Wallet?
   notifications  Notification[]
+  devices        Device[]
+  notificationPreference NotificationPreference?
   rentalBookings RentalBooking[]
   aiPredictions  AIPrediction[]
   aiFeedback     AIFeedback[]   @relation("AIFeedbackUser")
@@ -519,32 +521,108 @@ enum TransactionStatus {
 
 // Notification
 model Notification {
-  id        String @id @default(uuid())
-  userId    String
-  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id            String @id @default(uuid())
+  userId        String
+  user          User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  type      NotificationType
-  title     String
-  body      String
+  type          NotificationType
+  channel       NotificationChannel @default(IN_APP)
+  title         String
+  body          String
 
-  data      Json?       // Additional payload
-  read      Boolean @default(false)
+  data          Json?       // Additional payload (deep link, etc.)
+  isRead        Boolean @default(false)
+  readAt        DateTime?
 
-  createdAt DateTime @default(now())
+  sentAt        DateTime @default(now())
+  deliveredAt   DateTime?
 
+  createdAt     DateTime @default(now())
+
+  @@index([userId])
+  @@index([userId, isRead])
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([type])
   @@map("notifications")
 }
 
+// Extended Notification Types
 enum NotificationType {
-  BID_RECEIVED
+  BID_PLACED
   BID_ACCEPTED
+  BID_REJECTED
   OUTBID_ALERT
   AUCTION_WON
+  AUCTION_ENDING_SOON
   JOB_ASSIGNED
   PICKUP_REMINDER
   DELIVERY_REMINDER
+  DELIVERY_CONFIRMED
   PAYMENT_RECEIVED
+  PAYMENT_SENT
+  FRAUD_ALERT
   SYSTEM
+  MESSAGE
+  RENTAL_BOOKING
+  RENTAL_CONFIRMED
+}
+
+// Notification Channel
+enum NotificationChannel {
+  PUSH
+  EMAIL
+  SMS
+  IN_APP
+}
+
+// Notification Preference
+model NotificationPreference {
+  id            String    @id @default(uuid())
+  userId        String    @unique
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Alert categories
+  bidAlerts     Boolean   @default(true)
+  auctionAlerts Boolean   @default(true)
+  jobAlerts     Boolean   @default(true)
+  paymentAlerts Boolean   @default(true)
+  fraudAlerts   Boolean   @default(true)
+  messageAlerts Boolean   @default(true)
+  rentalAlerts  Boolean   @default(true)
+  systemAlerts  Boolean   @default(true)
+
+  // Channel preferences
+  pushEnabled   Boolean   @default(true)
+  emailEnabled  Boolean   @default(true)
+  smsEnabled    Boolean   @default(false)
+
+  // Quiet hours (24h format)
+  quietHoursStart Int?
+  quietHoursEnd   Int?
+
+  updatedAt     DateTime  @updatedAt
+
+  @@map("notification_preferences")
+}
+
+// Device Registration for Push Notifications
+model Device {
+  id            String    @id @default(uuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  fcmToken      String
+  deviceType    String    @default("UNKNOWN") // ANDROID, IOS, WEB
+  deviceName    String?
+  osVersion     String?
+  appVersion    String?
+
+  isActive      Boolean   @default(true)
+  lastUsedAt    DateTime  @updatedAt
+  createdAt     DateTime  @default(now())
+
+  @@unique([userId, fcmToken])
+  @@map("devices")
 }
 
 // AI Predictions & Machine Learning

@@ -503,7 +503,7 @@ router.patch(
         where: { id },
         data: {
           status: 'COMPLETED',
-          paymentStatus: 'COMPLETED',
+          paymentStatus: 'RELEASED',
         },
         include: {
           asset: {

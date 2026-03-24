@@ -1,5 +1,5 @@
 import { prisma } from '../../prisma/client';
-import { MarketAnalytics, AIPrediction, FraudAlert, Prisma } from '@prisma/client';
+import { MarketAnalytics, AIPrediction, FraudAlert, Prisma, FraudAlertType } from '@prisma/client';
 
 // AI Service Configuration
 const CONFIG = {
@@ -502,14 +502,14 @@ export class FraudDetectionService {
   /**
    * Map entity type to alert type
    */
-  private mapAlertType(entityType: string): string {
+  private mapAlertType(entityType: string): FraudAlertType {
     switch (entityType) {
       case 'TRANSACTION':
-        return 'TRANSACTION';
+        return FraudAlertType.TRANSACTION;
       case 'BID':
-        return 'BID_MANIPULATION';
+        return FraudAlertType.BID_MANIPULATION;
       default:
-        return 'TRANSACTION';
+        return FraudAlertType.TRANSACTION;
     }
   }
 }
@@ -704,25 +704,32 @@ export class AnalyticsService {
     for (const region of regions) {
       const analytics = await this.calculateRegionAnalytics(region, today);
 
-      // Upsert analytics record
-      await prisma.marketAnalytics.upsert({
+      // Upsert analytics record using findFirst + create/update
+      const existing = await prisma.marketAnalytics.findFirst({
         where: {
-          period_periodType_region_route: {
-            period,
-            periodType: 'DAY',
-            region,
-            route: null,
-          },
-        },
-        update: analytics,
-        create: {
           period,
           periodType: 'DAY',
           region,
           route: null,
-          ...analytics,
         },
       });
+
+      if (existing) {
+        await prisma.marketAnalytics.update({
+          where: { id: existing.id },
+          data: analytics,
+        });
+      } else {
+        await prisma.marketAnalytics.create({
+          data: {
+            period,
+            periodType: 'DAY',
+            region,
+            route: null,
+            ...analytics,
+          },
+        });
+      }
     }
   }
 

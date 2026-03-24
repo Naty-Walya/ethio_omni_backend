@@ -490,6 +490,14 @@ model Transaction {
   reference   String?     // External payment reference
   status      TransactionStatus @default(PENDING)
 
+  // Payment method
+  paymentMethod PaymentMethod?
+  paymentPhone  String?     // Phone number used for payment
+
+  // External references
+  externalReference String?
+  completedAt       DateTime?
+
   // Related entity
   relatedId   String?     // Job ID, Bid ID, etc.
   relatedType String?     // Type of related entity
@@ -517,6 +525,14 @@ enum TransactionStatus {
   COMPLETED
   FAILED
   CANCELLED
+  IN_ESCROW
+}
+
+enum PaymentMethod {
+  TELEBIRR
+  CBE_BIRR
+  BANK_TRANSFER
+  CASH
 }
 
 // Notification

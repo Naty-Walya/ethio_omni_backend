@@ -6,9 +6,6 @@ import { createServer } from 'http';
 // Load environment variables
 dotenv.config();
 
-// Initialize Firebase for push notifications
-initializeFirebase();
-
 // Import routes
 import authRoutes from './routes/auth';
 import freightRoutes from './routes/freight';
@@ -20,9 +17,13 @@ import jobsRoutes from './routes/jobs';
 import rentalRoutes from './routes/rentals';
 import aiRoutes from './routes/ai';
 import notificationRoutes from './routes/notifications';
+import paymentRoutes from './routes/payments';
 
-// Import notification service
+// Import services
 import { initializeFirebase } from './services/notifications';
+
+// Initialize Firebase for push notifications
+initializeFirebase();
 
 // Import middleware
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
@@ -79,6 +80,7 @@ app.use('/api/jobs', jobsRoutes);
 app.use('/api/rentals', rentalRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/payments', paymentRoutes);
 
 // API documentation
 app.get('/api', (req, res) => {
@@ -96,6 +98,7 @@ app.get('/api', (req, res) => {
       rentals: '/api/rentals',
       ai: '/api/ai',
       notifications: '/api/notifications',
+      payments: '/api/payments',
     },
     websocket: {
       events: [

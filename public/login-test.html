@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Driver Login - Ethio Omni</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    .login-container {
+      background: white;
+      padding: 40px;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      width: 100%;
+      max-width: 400px;
+    }
+    h1 {
+      text-align: center;
+      color: #333;
+      margin-bottom: 30px;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      margin-bottom: 8px;
+      color: #555;
+      font-weight: 500;
+    }
+    input {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 16px;
+      box-sizing: border-box;
+    }
+    input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    button {
+      width: 100%;
+      padding: 14px;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    button:hover {
+      background: #5a6fd6;
+    }
+    .error {
+      color: #e74c3c;
+      margin-top: 10px;
+      text-align: center;
+    }
+    .success {
+      color: #27ae60;
+      margin-top: 10px;
+      text-align: center;
+    }
+    .quick-login {
+      margin-top: 20px;
+      padding-top: 20px;
+      border-top: 1px solid #e0e0e0;
+    }
+    .quick-login h3 {
+      margin-bottom: 15px;
+      color: #555;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .driver-btn {
+      background: #27ae60;
+      margin-bottom: 10px;
+    }
+    .driver-btn:hover {
+      background: #219a52;
+    }
+    .loading {
+      opacity: 0.6;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-container">
+    <h1>🚛 Ethio Omni</h1>
+    <form id="loginForm">
+      <div class="form-group">
+        <label for="phone">Phone Number</label>
+        <input type="tel" id="phone" placeholder="+251911111111" required>
+      </div>
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" placeholder="Enter password" required>
+      </div>
+      <button type="submit">Login</button>
+      <div id="message"></div>
+    </form>
+
+    <div class="quick-login">
+      <h3>Quick Login - Test Drivers</h3>
+      <button class="driver-btn" onclick="loginAsDriver1()">Login as Driver 1 (+251922222222)</button>
+      <button class="driver-btn" onclick="loginAsDriver2()">Login as Driver 2 (+251933333333)</button>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = 'http://localhost:3002/api';
+
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      await performLogin(
+        document.getElementById('phone').value,
+        document.getElementById('password').value,
+        'DRIVER'
+      );
+    });
+
+    async function loginAsDriver1() {
+      await performLogin('+251922222222', 'password123', 'DRIVER');
+    }
+
+    async function loginAsDriver2() {
+      await performLogin('+251933333333', 'password123', 'DRIVER');
+    }
+
+    async function performLogin(phone, password, role) {
+      const btn = document.querySelector('button[type="submit"]');
+      const msg = document.getElementById('message');
+      btn.classList.add('loading');
+      msg.textContent = '';
+
+      try {
+        const response = await fetch(`${API_URL}/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone, password, role })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          // Store auth data
+          localStorage.setItem('auth_token', data.data.token);
+          localStorage.setItem('user', JSON.stringify(data.data.user));
+
+          msg.innerHTML = `<div class="success">✅ Login successful! Redirecting...</div>`;
+
+          // Redirect to auction screen after short delay
+          setTimeout(() => {
+            window.location.href = '/#/auctions';
+          }, 1000);
+        } else {
+          msg.innerHTML = `<div class="error">❌ ${data.message || 'Login failed'}</div>`;
+        }
+      } catch (error) {
+        msg.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+      } finally {
+        btn.classList.remove('loading');
+      }
+    }
+  </script>
+</body>
+</html>
